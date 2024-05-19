@@ -93,7 +93,7 @@ class Downloader(object):
 
     def retrieve(self, url, destination, callback=None):
         self.size = 0
-        time.clock()   
+
         try:
           headers={'User-Agent':DEFAULT_USER_AGENT,
                   'Accept': 'application/json'
@@ -153,17 +153,7 @@ class Downloader(object):
         else:
             done = 100
         bar = self.bar(bytes_so_far, filesize, done)
-        if not self.cycles % 3 and bits != filesize:
-            now = time.clock()
-            elapsed = now-self.before
-            if elapsed:
-                speed = self.kibi(blocksize * 3 // elapsed)
-                self.history.append(speed)
-                self.history = self.history[-4:]
-            self.before = now
-        average = round(sum(self.history[-4:]) // 4, 1)
-        self.size = self.kibi(bits)
-        print('\r~ [%s] %s KiB/s  ' % (bar, str(average)), end=' ')
+
 
     def bar(self, bytes_so_far, filesize, done):
         span = self.width * done * 0.01

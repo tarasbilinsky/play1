@@ -110,7 +110,6 @@ def package_as_war(app, env, war_path, war_zip_path, war_exclusion_list = None):
         print("~")
         sys.exit(-1)
 
-    print("~ Packaging current version of the framework and the application to %s ..." % (os.path.normpath(war_path)))
     if os.path.exists(war_path): shutil.rmtree(war_path)
     if os.path.exists(os.path.join(app.path, 'war')):
         copy_directory(os.path.join(app.path, 'war'), war_path)
@@ -127,8 +126,8 @@ def package_as_war(app, env, war_path, war_zip_path, war_exclusion_list = None):
         replaceAll(os.path.join(war_path, 'WEB-INF/web.xml'), r'%PLAY_ID%', 'war')
     if os.path.exists(os.path.join(war_path, 'WEB-INF/application')): shutil.rmtree(os.path.join(war_path, 'WEB-INF/application'))
     copy_directory(app.path, os.path.join(war_path, 'WEB-INF/application'), war_exclusion_list)
-    if os.path.exists(os.path.join(war_path, 'WEB-INF/application/war')):
-        shutil.rmtree(os.path.join(war_path, 'WEB-INF/application/war'))
+    #if os.path.exists(os.path.join(war_path, 'WEB-INF/application/war')):
+    #    shutil.rmtree(os.path.join(war_path, 'WEB-INF/application/war'))
     if os.path.exists(os.path.join(war_path, 'WEB-INF/application/logs')):
         shutil.rmtree(os.path.join(war_path, 'WEB-INF/application/logs'))
     if os.path.exists(os.path.join(war_path, 'WEB-INF/application/tmp')):

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Play command line script www.playframework.com/
 
@@ -48,12 +48,7 @@ try:
 
     if showLogo:
         # ~~~~~~~~~~~~~~~~~~~~~~ Display logo
-        print(r"~        _            _ ")
-        print(r"~  _ __ | | __ _ _  _| |")
-        print(r"~ | '_ \| |/ _' | || |_|")
-        print(r"~ |  __/|_|\____|\__ (_)")
-        print(r"~ |_|            |__/   ")
-        print(r"~")
+        pass
     else:
         sys.argv.remove("--silent")
 

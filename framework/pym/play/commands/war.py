@@ -74,10 +74,3 @@ def execute(**kargs):
     package_as_war(app, env, war_path, war_zip_path, war_exclusion_list)
 
     print("~ Done !")
-    print("~")
-    print("~ You can now load %s as a standard WAR into your servlet container" % (os.path.normpath(war_path)))
-    print("~ You can't use play standard commands to run/stop/debug the WAR application...")
-    print("~ ... just use your servlet container commands instead")
-    print("~")
-    print("~ Have fun!")
-    print("~")
