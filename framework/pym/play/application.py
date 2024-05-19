@@ -315,6 +315,7 @@ class PlayApplication(object):
             args += ["--https.port=%s" % self.play_env['https.port']]
             
         java_args.append('-Dfile.encoding=utf-8')
+        java_args.append('--enable-preview')
 
         if application_mode == 'dev':
             self.check_jpda()

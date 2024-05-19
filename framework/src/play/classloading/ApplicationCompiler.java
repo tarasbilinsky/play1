@@ -1,9 +1,6 @@
 package play.classloading;
 
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.StringTokenizer;
+import java.util.*;
 import java.util.stream.Stream;
 
 import org.eclipse.jdt.core.compiler.IProblem;
@@ -34,7 +31,7 @@ import play.exceptions.UnexpectedException;
  */
 public class ApplicationCompiler {
 
-    private static final String JAVA_SOURCE_DEFAULT_VERSION = "11";
+    private static final String JAVA_SOURCE_DEFAULT_VERSION = "21";
     static final Map<String, String> compatibleJavaVersions = Map.of(
         "11", CompilerOptions.VERSION_11,
         "12", CompilerOptions.VERSION_12,
@@ -44,7 +41,8 @@ public class ApplicationCompiler {
         "16", CompilerOptions.VERSION_16,
         "17", CompilerOptions.VERSION_17,
         "18", CompilerOptions.VERSION_18,
-        "19", CompilerOptions.VERSION_19
+        "19", CompilerOptions.VERSION_19,
+        "21", CompilerOptions.VERSION_21
     );
 
     final Map<String, Boolean> packagesCache = new HashMap<>();
@@ -83,7 +81,8 @@ public class ApplicationCompiler {
             Map.entry(CompilerOptions.OPTION_Encoding, "UTF-8"),
             Map.entry(CompilerOptions.OPTION_Source, jdtVersion),
             Map.entry(CompilerOptions.OPTION_TargetPlatform, jdtVersion),
-            Map.entry(CompilerOptions.OPTION_Compliance, jdtVersion)
+            Map.entry(CompilerOptions.OPTION_Compliance, jdtVersion),
+            Map.entry(CompilerOptions.OPTION_EnablePreviews, CompilerOptions.ENABLED)
         );
     }
 
@@ -311,6 +310,8 @@ public class ApplicationCompiler {
             protected void handleInternalException(Throwable e, CompilationUnitDeclaration ud, CompilationResult result) {
             }
         };
+
+        jdtCompiler.options.enablePreviewFeatures = true;
 
         // Go !
         jdtCompiler.compile(compilationUnits);
