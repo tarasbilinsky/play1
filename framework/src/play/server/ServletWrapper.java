@@ -2,6 +2,8 @@ package play.server;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.mail.EmailException;
+import org.apache.commons.mail.SimpleEmail;
 import play.Invoker;
 import play.Invoker.InvocationContext;
 import play.Logger;
@@ -19,6 +21,7 @@ import play.mvc.Router;
 import play.mvc.Scope;
 import play.mvc.results.NotFound;
 import play.mvc.results.RenderStatic;
+import play.server.Throttle.Result;
 import play.templates.TemplateLoader;
 import play.utils.HTTP;
 import play.utils.Utils;
@@ -32,8 +35,10 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.*;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -46,6 +51,144 @@ import static org.apache.commons.io.IOUtils.closeQuietly;
  * Thanks to Lee Breisacher.
  */
 public class ServletWrapper extends HttpServlet implements ServletContextListener {
+	
+	private static final Throttle throttle =  new Throttle(100,Throttle.Timespan.Hour);
+
+	private static boolean ignoreError(Exception e, Scope.Session s, Http.Request r, Scope.Flash f, Scope.Params p, boolean is500){
+		String url = r.url.trim().toLowerCase();
+		int i = url.indexOf('?');
+		String obj=i>-1?url.substring(0, i):url;
+		String qry=i>-1?url.substring(i+1):"";
+		
+		if(!is500){
+            return true;
+//			//404
+//			if(url.equals("/_stax/status")) return true;
+//			String[] endings = new String[]{
+//				"php","css","js","jsp","asp","htm","html","ico","jpeg","jpg","gif","png","tiff","pdf"
+//			};
+//			for(String ending:endings) if(obj.endsWith("."+ending)) return true;
+//
+//			String[] contains = new String[]{
+//					"cgi","-bin","php","mysql",
+//                    "muieblackcat",
+//                    "data:image/jpeg;base64"
+//			};
+//			for(String cnts:contains) if(url.contains(cnts)) return true;
+		} else {
+			//500
+			if(e==null || e.getLocalizedMessage()==null || e.getLocalizedMessage().equals("Unexpected Error") && url.equals("/files/upload")) return true;
+			
+			
+		}
+		return false;
+	}
+
+	private static String printStackTrace(Exception e) {
+		try{
+		 StringWriter stack = new StringWriter();
+		 e.printStackTrace(new PrintWriter(stack));
+		 return stack.toString();
+		} catch(Exception e2){
+			 return "";
+		 }
+	}
+
+	//Play/server/ServletWrapper.java called from serve500 and serve404
+	private static void reportError(Exception e, play.mvc.Scope.Session s, play.mvc.Http.Request r, play.mvc.Scope.Flash f, play.mvc.Scope.Params p, boolean is500){
+
+		Result tr = Result.Ok;
+
+		StringBuilder m0 = new StringBuilder();
+		try{
+			if( ignoreError(e,s,r,f,p,is500)) {
+				play.Logger.warn("REPORTERRORCUSTOM report error ignore"); //return;
+				if(is500) m0.append(" WOULD_BE_IGNORED "); else return;
+			};
+		} catch (Exception e2){
+			m0.append("Exception in ignoreError "+e2.getLocalizedMessage()+"\n"+printStackTrace(e2));
+		}
+
+
+		
+		try{
+			tr = throttle.get();
+			if(!tr.get()) {
+				play.Logger.warn("REPORTERRORCUSTOM report error throttle");
+				m0.append(" WOULD_BE_THROTTLED ");
+				//return;
+			}
+		} catch (Exception e3){
+			m0.append("Exception in throttle "+e3.getLocalizedMessage()+"\n"+printStackTrace(e3));
+		}
+
+
+    	
+		String eId = "";
+		//if(e instanceof PlayException) eId=((PlayException) e).getId();
+		StringBuilder m = new StringBuilder();
+    	m.append(e.getLocalizedMessage()+"\n\n");
+    	if(s!=null && s.all()!=null){
+    		m.append("Session:\n");
+    		for(String k: s.all().keySet()){
+    			String v = s.all().get(k);
+    			if(v!=null) m.append(k+": "+v+"\n");
+    		}
+    	}
+    	if(r!=null){
+    		m.append("\n\nRequest:\n"+r.url+"\n\n");
+    		if(r.headers!=null){
+    			for(String k: r.headers.keySet()){
+    				m.append(k+": ");
+    				if(r.headers.get(k)!=null){
+    					m.append(r.headers.get(k).name+" ");
+    					for(String v:r.headers.get(k).values){
+    						m.append(v+"\n");
+    	    			}
+    					m.append("\n");
+    				}
+    			}
+    		}
+    	}
+    	if(f!=null){
+    		m.append("Flash:"+f.toString()+"\n");
+    	}
+    	if(p!=null & p.data!=null){
+    		m.append("Params:\n");
+    		for(String k:p.data.keySet()){
+    			m.append(k+": ");
+    			for(String v:p.data.get(k)){
+    				m.append(v+"\n");
+    			}
+    			m.append("\n");
+    		}
+    	}
+
+
+		Properties prop  = Play.configuration;
+    	String errorMonitorigType = prop.getProperty("errormonitoring.type","none");
+    	if(errorMonitorigType.equalsIgnoreCase("email")){
+
+	        	try{
+	    			SimpleEmail emailer = new SimpleEmail();
+	    			emailer.setHostName(prop.getProperty("errormonitoring.smtphost","smtp.gmail.com"));
+	    			emailer.setAuthentication(prop.getProperty("errormonitoring.user",""),prop.getProperty("errormonitoring.password",""));
+	    			emailer.setSSL((prop.getProperty("errormonitoring.emailssl","true").equalsIgnoreCase("true")));
+                    String portStr = prop.getProperty("errormonitoring.port","587");
+                    emailer.setSslSmtpPort(portStr);
+                    int port = Integer.parseInt(portStr);
+                    emailer.setSmtpPort(port);
+	    			emailer.setMsg(m.toString());
+	    			emailer.setFrom(prop.getProperty("errormonitoring.emailfrom",""));
+	    			emailer.addTo(prop.getProperty("errormonitoring.emailto",""));
+	    			emailer.setSubject(prop.getProperty("application.name","Play!")+" Error "+(is500?"500 ":"404 ")+eId+((tr==Throttle.Result.Last)?" Next Error and Not Found Monitoring Emails [HEA Throttled] for this Hour":""));
+	    			emailer.send();
+	        	}
+	        	catch (EmailException e1){
+	        		play.Logger.error("REPORTERRORCUSTOM6 Error sending monitoring email", e1);
+	        	}
+    	}
+    }
 
     public static final String IF_MODIFIED_SINCE = "If-Modified-Since";
     public static final String IF_NONE_MATCH = "If-None-Match";
@@ -370,6 +513,7 @@ public class ServletWrapper extends HttpServlet implements ServletContextListene
         } catch (Exception fex) {
             Logger.error(fex, "(encoding ?)");
         }
+        reportError(e,Scope.Session.current(),Http.Request.current(),Scope.Flash.current(),Scope.Params.current(),false);
     }
 
     public void serve500(Exception e, HttpServletRequest request, HttpServletResponse response) {
@@ -423,12 +567,15 @@ public class ServletWrapper extends HttpServlet implements ServletContextListene
                 String errorHtml = TemplateLoader.load("errors/500." + format).render(binding);
                 response.getOutputStream().write(errorHtml.getBytes(Response.current().encoding));
                 Logger.error(e, "Internal Server Error (500)");
+                reportError(e,Scope.Session.current(),Http.Request.current(),Scope.Flash.current(),Scope.Params.current(),true);
             } catch (Throwable ex) {
                 Logger.error(e, "Internal Server Error (500)");
                 Logger.error(ex, "Error during the 500 response generation");
+                reportError(e,Scope.Session.current(),Http.Request.current(),Scope.Flash.current(),Scope.Params.current(),true);
                 throw ex;
             }
         } catch (Throwable exxx) {
+        	reportError(e,Scope.Session.current(),Http.Request.current(),Scope.Flash.current(),Scope.Params.current(),true);
             if (exxx instanceof RuntimeException) {
                 throw (RuntimeException) exxx;
             }
