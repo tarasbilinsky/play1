@@ -33,7 +33,7 @@ public abstract class PlayException extends RuntimeException {
     private static final Throttle throttle = new Throttle(5, Throttle.Timespan.Minute);
 
     void reportError(String stackTrace) {
-        if(getCause() != null &&
+        if(getCause() != null && getCause().getLocalizedMessage() != null &&
                 getCause().getLocalizedMessage().contains("Cannot find enhanced byte class for app_rythm___l_main_html__R_T_C__")){
             Logger.warn("Exception enhanced byte class for app_rythm___l_main_html__R_T_C__");
             return;
