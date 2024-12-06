@@ -353,7 +353,9 @@ public class PlayHandler extends SimpleChannelUpstreamHandler {
                 c.setMaxAge(cookie.maxAge);
             }
             c.setHttpOnly(cookie.httpOnly);
-            nettyResponse.headers().add(SET_COOKIE, ServerCookieEncoder.STRICT.encode(c));
+            String sameSiteSuffix;
+            if (cookie.secure) sameSiteSuffix = "; SameSite=None"; else sameSiteSuffix = "";
+            nettyResponse.headers().add(SET_COOKIE, ServerCookieEncoder.STRICT.encode(c)+sameSiteSuffix);
         }
 
         if (!response.headers.containsKey(CACHE_CONTROL) && !response.headers.containsKey(EXPIRES)
