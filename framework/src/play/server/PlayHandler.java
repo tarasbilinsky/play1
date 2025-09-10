@@ -15,6 +15,7 @@ import org.jboss.netty.handler.codec.http.websocketx.*;
 import org.jboss.netty.handler.stream.ChunkedInput;
 import org.jboss.netty.handler.stream.ChunkedStream;
 import org.jboss.netty.handler.stream.ChunkedWriteHandler;
+import org.slf4j.LoggerFactory;
 import play.Invoker;
 import play.Invoker.InvocationContext;
 import play.Logger;
@@ -65,6 +66,7 @@ public class PlayHandler extends SimpleChannelUpstreamHandler {
      */
     private static final String signature = "Play! Framework;" + Play.version + ";" + Play.mode.name().toLowerCase();
     private static final boolean exposePlayServer;
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(PlayHandler.class);
 
     /**
      * The Pipeline is given for a PlayHandler
@@ -645,7 +647,12 @@ public class PlayHandler extends SimpleChannelUpstreamHandler {
         Map<String, Http.Cookie> cookies = new HashMap<>(16);
         String value = nettyRequest.headers().get(COOKIE);
         if (value != null) {
-            Set<Cookie> cookieSet = ServerCookieDecoder.STRICT.decode(value);
+            Set<Cookie> cookieSet = null;
+            try {
+                cookieSet = ServerCookieDecoder.STRICT.decode(value);
+            } catch (IllegalArgumentException e) {
+                log.warn("Error decoding cookies", e);
+            }
             if (cookieSet != null) {
                 for (Cookie cookie : cookieSet) {
                     Http.Cookie playCookie = new Http.Cookie();
