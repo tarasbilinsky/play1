@@ -6,6 +6,7 @@ import play.Play;
 import play.Logger;
 import org.apache.commons.mail.*;
 import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.util.Properties;
 
@@ -88,6 +89,25 @@ public abstract class PlayException extends RuntimeException {
                                 }
                             }
                         }
+
+                        if(request.args != null && !request.args.isEmpty()) {
+                            requestInfo.append("\n\n\nArgs:\n");
+                            for (String k : request.args.keySet()) {
+                                requestInfo.append(k + ": ");
+                                if (request.args.get(k) != null) {
+                                    Object o = request.args.get(k);
+                                    if (o instanceof String) {
+                                        String str = (String) o;
+                                        requestInfo.append(str.substring(0, Math.min(100, str.length())) + "\n");
+                                    } else if (o instanceof Number || o instanceof Boolean || o instanceof Character || o instanceof Enum || o instanceof java.util.Date || o instanceof java.util.UUID) {
+                                        requestInfo.append(o + "\n");
+                                    } else {
+                                        requestInfo.append(o.getClass().getName() + " (" + sizeInBytes(o) + " bytes)\n");
+                                    }
+                                }
+                            }
+                        }
+
                     }
                 } catch (Exception e) {
                     requestInfo.append(e.toString());
@@ -117,6 +137,20 @@ public abstract class PlayException extends RuntimeException {
                 return;
         }
 
+    }
+
+    private static long sizeInBytes(Object o) {
+        if (o == null) return 0;
+        if (o instanceof byte[]) return ((byte[]) o).length;
+        try {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(bos);
+            oos.writeObject(o);
+            oos.close();
+            return bos.size();
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     boolean reportErrorIgnore(String stackTrace){
